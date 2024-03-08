@@ -116,9 +116,9 @@ where each $w_i$ is the weight of node $i$.
 Then the objective function to minimize is
 ```math
 \mathcal{H}=
-A * \left(\sum_{i=1}^n\sum_{j=1}^n x_ix_j\right)
+A * \left(\frac{1}{2}\sum_{i=1}^n\sum_{j=1}^n x_ix_j\right)
 - B * \left(\sum_{i = 1}^n w_ix_i\right)
-= A \left(x^TJx\right) - B \left(h^Tx\right)
+= A \left(\frac{1}{2}x^TJx\right) - B \left(h^Tx\right)
 ```
 where $A \geq 0$ and $B \geq 0$ are both hyperparameters that must be tuned. The $A$ term punishes the selection of nodes that are connected by an edge, and the $B$ term maximizes the total weight among selected nodes. In general, the hyperparameters should be set with $A > B$ to increase the likelihood of generating a set that is independent.
 
