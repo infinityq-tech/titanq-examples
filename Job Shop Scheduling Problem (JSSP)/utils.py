@@ -1,19 +1,24 @@
-import math
-from copy import deepcopy
-from datetime import datetime
 from collections import defaultdict
-import numpy as np
+from datetime import datetime
+import pandas as pd
 import plotly.express as px
+import numpy as np
+
+# Time scale for the entries of the prod_time_matrix and transfer_time_matrix.
+# Value of 1 indicates that prod_time_matrix and transfer_time_matrix are specified in days.
+# Value of 7 indicates that prod_time_matrix and transfer_time_matrix are specified in weeks.
+# Value of 30 indicates that prod_time_matrix and transfer_time_matrix are specified in months.
+time_unit = 1
 
 def read_instance(path: str) -> dict:
-    """ Read the JSSP instance from the file path
+    """ Read the JSSP instance from the file path.
 
     Args:
-        path (str): The file path of the JSSP
+        path (str): The file path of the JSSP.
 
     Returns:
-        dict: The jobs dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
+        Dict{int:List[Tuple(int,int)]}: The jobs dictionary where the key is the job number
+        and the value is a list of execution times of the tasks of the corresponding job key.
     """
 
     job_dict = defaultdict(list)
@@ -21,71 +26,21 @@ def read_instance(path: str) -> dict:
         f.readline()
         for i, line in enumerate(f):
             lint = list(map(int, line.split()))
-            job_dict[i + 1] = [x for x in
+            job_dict[i] = [x for x in
                                zip(lint[::2],  # machines
                                    lint[1::2]  # operation lengths
                                    )]
         return dict(job_dict)
 
-def from_sigma_to_solution(sigma, jobs: dict):
-    """ Transform any solution for JSSP in the Ising model to a readable solution
-
-    Args:
-        sigma (List[int[-1,+1]]): The solution represented in the Ising model
-        jobs (dict): jobs (dict): The jobs dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-    Returns:
-        Dict[int:List[int]]: The solution corresponding to the sigma
-    """
-    solution = {}
-    for i, row in enumerate(sigma):
-        if 1 in row:
-            time = np.where(row == 1)
-            time = time[0][0]
-            job = get_job_index(jobs, i)
-            if job in solution.keys():
-                solution[job].append(time)
-            else:
-                solution[job] = [time]
-        else:
-            return 0
-    return solution
-
-def from_solution_to_sigma(solution:dict,num_nodes,num_rows,num_cols):
-    """ Transform any solution to a solution in the Ising model
-
-    Args:
-        solution (Dict[int:List[int]]): Dictionary corresponding to the solution of the JSSP where the key is the machine id, 
-        and the value is a list of starting times corresponding to each task within a particular job
-        num_nodes (int): The number of the nodes of the Ising model
-        num_rows (int): The number of rows in the Ising model corresponding to the number of tasks
-        num_cols (int): The number of columns in the Ising model corresponding to the max_time 
-        for finishing all the tasks
-
-    Returns:
-        sigma (List[int[-1,+1]]): The solution represented in the Ising model
-    """
-
-    sigma = -np.ones(num_nodes)
-    sigma_matrix = np.reshape(sigma, (num_rows, num_cols))
-    cumulative = 0
-    for _,value in solution.items():
-        for i,t in enumerate(value):
-            sigma_matrix[cumulative+i][t] = 1
-        cumulative+= len(value)
-    sigma = np.insert(sigma,0,-1)
-    return sigma
-
 def get_max_time(jobs):
-    """ Compute the maximum time in order to execute all the tasks of the JSSP
+    """ Compute the maximum time in order to execute all the tasks of the JSSP.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
+        jobs (Dict{int:List[Tuple(int,int)]}): Dictionary where the key is the job number
+        and the value is a list of execution times of the tasks of the corresponding job key.
 
     Returns:
-        int: The maximum time to run all the tasks
+        int: The maximum time to run all the tasks.
     """
 
     max_time = 0
@@ -93,27 +48,25 @@ def get_max_time(jobs):
         max_time += sum(a[1] for a in job)
     return max_time
 
-
 def get_num_machines(jobs: dict):
-    """ Compute the number of machines in the JSSP instance
+    """ Compute the number of machines in the JSSP instance.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
+        jobs (Dict{int:List[Tuple(int,int)]}): Dictionary where the key is the job number
+        and the value is a list of execution times of the tasks of the corresponding job key.
 
     Returns:
-        int: The number of machines in the JSSP instance
+        int: The number of machines in the JSSP instance.
     """
 
     return max(max(machine for machine, p in tasks) for _, tasks in jobs.items()) + 1
 
-
 def get_num_tasks(jobs):
-    """ Compute the number of tasks in the JSSP instance
+    """ Compute the number of tasks in the JSSP instance.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
+        jobs (Dict{int:List[Tuple(int,int)]}): Dictionary where the key is the job number 
+        and the value is a list of execution times of the tasks of the corresponding job key.
 
     Returns:
         int: The number of tasks in the JSSP instance
@@ -126,461 +79,278 @@ def get_num_tasks(jobs):
 
     return num_tasks
 
-def get_num_nodes(jobs, max_time):
-    """ Compute the number of nodes (spins) in the Ising model of the JSSP instance
+def get_global_index_of_task(jobs, job_id, task_id):
+    """ Returns the index of the task in the list of all tasks given the index of the task within the given job.
 
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-        max_time (int): The maximum time to run all tasks
+        Args:
+            jobs (Dict{int:List[Tuple(int,int)]}): Dictionary where the key is the job number
+                and the value is a list of execution times of the tasks of the corresponding job key.
+            job_id (int): The index of the job where the task is in.
+            task_id (int): The index of the task within the job.
 
-    Returns:
-        int: The number of nodes (spins) in the Ising model
+        Returns:
+            int: The index of the given task.
     """
 
-    size = 0
-    for _, tasks in jobs.items():
-        size += len(tasks)
-    return max_time * size
+    s = 0
+    for job, tasks in jobs.items():
+        if job == job_id:
+            return s + task_id
+        else:
+            s += len(tasks)
+    return s
+       
+def extract_solution(start_times, tasks, task_names):
+    """Returns the schedule from the state solution.
 
-def spin_to_bit(spin):
-    """ Transform the spin(-1,+1) to a binary(0,1)
+        Args:
+            start_times (np.ndarray[int]): The list containing the start times for each task.
+            tasks (dict): The jobs dictionary where the key is the job number and the value is a list of execution times of the tasks of the corresponding job key.
+            task_names (List[str]): List containing the tasks names.
 
-    Args:
-        spin (int[-1,+1]): The value of the spin
-
-    Returns:
-        int: The value of the spin in the binary format
+        Returns:
+            Dict{str:List[Tuples[int,int]]}: The schedule as a dictionary where the keys are the tasks names and the values are the tuples (start_date, end_date) for the corresponding task
     """
 
-    return (spin+1)//2
+    schedule = {}
+    for idx, start in enumerate(start_times):
+        schedule[task_names[idx]] = (start, start+tasks[idx][1])
 
-def last_task_for_each_job(jobs:dict):
-    """ Generates the list of indices of all last tasks for each job
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-    Returns:
-        List[int]: The list of indices of all last tasks for each job
-    """
-
-    l = []
-    cumulative = 0
-    for _, t in jobs.items():
-        l.append(cumulative + len(t) - 1)
-        cumulative += len(t)
-    return l
-
-def first_task_for_each_job(jobs:dict):
-    """ Generates the list of indices of all first tasks for each job
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-    Returns:
-        List[int]: The list of indices of all first tasks for each job
-    """
-
-    f = []
-    cumul = 0
-    for _, t in jobs.items():
-        f.append(cumul)
-        cumul += len(t)
-    return f
-
-def compute_total_time(sigma, jobs):
-    """ Compute the total time spent given a solution in the Ising model
-
-    Args:
-        sigma (List[int[-1,+1]]): The solution represented in the Ising model
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-    Returns:
-        int: The total time for the given solution to execute all the tasks
-    """
-
-    s = sigma[1:]
-    num_rows = get_num_tasks(jobs)
-    num_cols = get_max_time(jobs)
-    s = np.reshape(s, (num_rows, num_cols))
-    total_time = math.inf
-    tasks = create_tasks_from_jobs(jobs)
-    L = last_task_for_each_job(jobs)
-    start = 0
-    list_total_time = []
-    for j in L:
-        col_one = np.where(s[j]==1)[0][0]
-        total_time = col_one + tasks[j][1]
-        list_total_time.append(total_time)
-    for j in range(num_cols):
-        index_ones_in_col = [i for i in range(num_rows) if s[i][j] == 1]
-        if index_ones_in_col:
-            start = j
-            break
-    return max(list_total_time)-start
-
-def squash_lengths(instance, steps=[4, 7]):
-    """ Returns an instance with the same operations, but with
-    squashed lengths to [1,2,3,..., len(steps)+1]
-
-    Args:
-        instance (dict): instance to be squashed
-        steps (list, optional): lengths at which operations
-        are qualified as a longer length. Defaults to [4, 7].
-
-    Returns:
-        dict: The instance with the same operations but with squashed lengths
-    """
-
-    steps.sort()
-    steps.append(float('inf'))
-
-    result = deepcopy(instance)
-
-    for operations in result.values():
-        for j, operation in enumerate(operations):
-            for i, step in enumerate(steps, start=1):
-                if operation[1] < step:
-                    operations[j] = (operation[0], i)
-                    break
-    return result
-
-
-def legal_starting_time(jobs:dict):
-    """ Generates a dictionary that indicates at which time each task can start
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-    Returns:
-        dict: The dictionary where the key is the id of the task 
-            and the value is the time from which this task can start
-    """
-
-    d = {j : {} for j in jobs.keys()}
-
-    for job,l in d.items():
-        s = 0
-        for i in range(len(jobs[job])):
-            l[i] = s
-            s += jobs[job][i][1]
-    count = 0
-    r = {}
-    for job,tasks in d.items():
-        for _, time in tasks.items():
-            r[count] = time
-            count+=1
-    return r
-
+    return schedule
 
 def convert_to_datetime(x):
-    """ Format the time in a readable format for plotly.express
+    """Converts an integer into a date.
 
     Args:
-        x (int): The discrete time
+        x (int): Time index.
+                 Ex: 15
 
     Returns:
-        datetime.str: The formatted time
+        Date in YYYY-MM-DD format.
     """
 
-    return datetime.fromtimestamp(31536000 + x * 24 * 3600).strftime("%Y-%m-%d")
+    dt_time = datetime.now().timestamp()
+    return datetime.fromtimestamp(x * 24 * 3600 + dt_time).strftime("%Y-%m-%d")
 
-def get_result(jobs, solution):
-    """ Compute the time spent for the solution
+def obtain_group_name(task):
+    """Returns the associated job for the given task.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-        solution (dict): Dictionary corresponding to the solution of the JSSP where the key is the machine id, 
-        and the value is a list of starting times corresponding to each task within a particular job
+        task (str): The task we want to extract the job from.
 
     Returns:
-        int: The total time spent to finish all tasks
+        str: The associated job for the given task.
+            Ex: Job1_Task1 --> Job1
     """
-    max_time = 0
-    for job, operations in jobs.items():
-        max_time = max(max_time, solution[job][-1] + int(operations[-1][1]))
-    return max_time
+    if task.startswith("Hand"):
+        return "Hand-off"
+    else:
+        return task.split("_")[0]
 
-def draw_solution(jobs: dict, solution: dict, x_max=None):
-    """Draw the solution using a GANTT chart
+def plot_schedule(assignments, schedule, available_time_slots, M, unit="weeks", time_unit=1, path="gantt.html"):
+    """Plots a GANTT chart given a schedule and assignments.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-        solution (dict): Dictionary corresponding to the solution of the JSSP where the key is the machine id, 
-        and the value is a list of starting times corresponding to each task within a particular job
-        x_max (int, optional): The maximum time to not surpass when drawing. Defaults to None.
+        assignments (Dict{str: str}): Dictionary storing the assignment of tasks to suppliers/machines.
+        schedule (Dict{str: Tuple(int, int)}): Dictionary where the keys are tasks, and values are a tuple where the first entry is the start time and the second entry is the end time for the task.
+        available_time_slots (np.ndarray[int]): List of available time slots for the machine.
+        M (np.ndarray[str]): List of available machines.
+                        Ex: ["S1_Casting", "S1_Machining", "S2_Machining", "S3_Casting"]
+        unit (str, optional): Unit of time for the schedule; defaults to "weeks".
+                              Ex: "weeks"
+        time_unit (int): Time scale for the entries of the prod_time_matrix and transfer_time_matrix.
+            Value of 1 indicates that prod_time_matrix and transfer_time_matrix are specified in days.
+            Value of 7 indicates that prod_time_matrix and transfer_time_matrix are specified in weeks.
+            Value of 30 indicates that prod_time_matrix and transfer_time_matrix are specified in months.
+        path (str): The HTML file path to save the plot to.
+
+    Returns:
+        None
     """
 
-    df = []
-    if x_max is None:
-        x_max = get_result(jobs, solution)
-    for job, tasks in solution.items():
-        for i, start in enumerate(tasks):
-            machine, length = jobs[job][i]
-            df.append(dict(Machine=machine,
-                           Start=convert_to_datetime(start),
-                           Finish=convert_to_datetime(start + length),
-                           Job=str(job)))
+    # Retrieve blocked time slots
+    blocked_time_slots = {M[machine]: [(idx*time_unit, idx*time_unit + time_unit) for idx, e in enumerate(
+        available_time_slots[machine]) if e == -1] for machine in range(len(M))}
+
+    plot_gantt_chart(blocked_time_slots, schedule, assignments, unit, path)
+
+def plot_gantt_chart(blocked_time_slots, schedule, assignments, unit, path="gantt.html"):
+    """Creates a GANTT chart figure for visualization purposes. 
+
+        Args:
+            blocked_time_slots (Dict{str: List(Tuple(int, int))}): Dictionary where the keys are the name of suppliers/machines and the values are lists of tuples where the first entry of each tuple is 
+            the start date of the blocked times and the second entry is end date of the blocked times. 
+                        Ex: {"S1_Casting_M1": [(0, 13), (20, 40)]}
+            schedule (Dict{str: Tuple(int, int)}): Dictionary where the keys are tasks, and values are a tuple where the first entry is the start time and the second entry is the end time for the task.
+            assignments (Dict{str: str}): Dictionary storing the assignment of tasks to suppliers/machines.
+            unit (str, optional): Unit of time for the schedule; defaults to "weeks".
+                                Ex: "weeks"
+            path (str): HTML file name to save the plot.
+
+        Returns:
+            None
+    """
     
-    num_tick_labels = list(range(x_max + 1))
-    date_ticks = [convert_to_datetime(x) for x in num_tick_labels]
+    color_map = ['#d5d5d5', "#ef553b", "#ff97ff", "#ffa15a", "#abc3f1", "#19d3f3", 
+                 "#b6e880", "#fecb52", "#ff6692", "#00cc96", '#cf2918', '#a44155', 
+                 '#684502', '#77a540', '#c41cfd', '#d56fa5', '#2ba793', '#826434', 
+                 '#cd3098', '#42c1d9', '#2a0514', '#217194', '#7e1dd2', '#b59e8b', 
+                 '#62de26', '#ef973f', '#3fd5bc', '#760dda', '#425bbc', '#4f56b8', 
+                 '#23247d', '#1dfd0a', '#879345', '#313f19', '#728434', '#21daf1', 
+                 '#a0479f', '#021680', '#f0e8ce', '#4b171a']
 
-    fig = px.timeline(df, y="Machine", x_start="Start", x_end="Finish", color="Job")
-    fig.update_traces(marker=dict(line=dict(width=3, color='black')), opacity=0.5)
-    fig.layout.xaxis.update({
-        'tickvals': date_ticks,
-        'ticktext': num_tick_labels,
-        'range': [convert_to_datetime(0), convert_to_datetime(x_max)]
-    })
-    fig.update_yaxes(autorange="reversed")  # otherwise tasks are listed from the bottom up
+    # Main data frames containing all necessary data
+    df = pd.DataFrame([
+        dict(
+            Job=obtain_group_name(task),
+            Task=task,
+            Start=convert_to_datetime(start),
+            Finish=convert_to_datetime(end),
+            Machine=assignments[task])
+        for task, (start, end) in schedule.items()
+    ])
+
+    blocked_df = pd.DataFrame([
+        dict(
+            Job="Blocked",
+            Task="Blocked",
+            Start=convert_to_datetime(start),
+            Finish=convert_to_datetime(end),
+            Machine=machine
+        )
+        for machine in blocked_time_slots.keys() for _, (start, end) in enumerate(blocked_time_slots[machine])
+    ])
+
+    # Replicate previous dataframe without Job data. This will be grouped into the first color group since Job is empty.
+    grayed_df = pd.DataFrame([
+        dict(
+            Job="",
+            Task=task,
+            Start=convert_to_datetime(start),
+            Finish=convert_to_datetime(end),
+            Machine=assignments[task],
+        )
+        for task, (start, end) in schedule.items()
+    ])
+    grayed_blocked_df = pd.DataFrame([
+        dict(
+            Job="",
+            Task="Blocked",
+            Start=convert_to_datetime(start),
+            Finish=convert_to_datetime(end),
+            Machine=machine
+        )
+        for machine in blocked_time_slots.keys() for _, (start, end) in enumerate(blocked_time_slots[machine])
+    ])
+
+    # Combine DataFrames (Grayed blocks are plotted first)
+    combined_df = pd.concat([grayed_df, grayed_blocked_df, df, blocked_df])
+
+    # Creating the plot
+    fig = px.timeline(
+        combined_df,
+        x_start="Start",
+        x_end="Finish",
+        y="Machine",
+        color="Job",  # Color is based on part
+        hover_name="Task",
+        color_discrete_sequence=color_map,
+    )
+
+    fig.update_layout(
+        title_text='Schedule',
+        xaxis_title=f'Time [{unit}]',
+        yaxis_title='Machine',
+        showlegend=True,
+    )
+
+    fig.update_traces(
+        selector=dict(name='Blocked'), showlegend=True, marker=dict(color='black', line=dict(width=0.0)),
+    )
+
+    num_vals = max_value_schedule(schedule) + 1
+
+    # Split by month
+    fig.update_layout(xaxis_range=[convert_to_datetime(
+        0), convert_to_datetime(num_vals)])
+    fig.update_xaxes(showgrid=True, ticklabelmode="period", dtick="M1")
+
+    # Reverses the ordering of machine along the y-axis
+    fig.update_yaxes(autorange="reversed")
     fig.show()
+    fig.write_html(path)
 
-
-def Q_to_Je(Q,offset=0):
-    """ Transform the matrix in QUBO format to a matrix in Ising format
+def max_value_schedule(schedule):
+    """ Returns the end time of the schedule.
 
     Args:
-        Q (List[List[float]]): The QUBO matrix
-        offset (int, optional): The offset to equalize the Ising energt with QUBO energy. Defaults to 0.
+        schedule (Dict{str: Tuple(int, int)}): Dictionary where the keys are tasks, and values are a tuple where the first entry is the start time and the second entry is the end time for the task.
 
     Returns:
-        List[List[float]]: The Ising matrix
+        int: The end time of the schedule.
     """
-
-    num_nodes = len(Q)
-
-    dict_Q = {}
-    for i in range(len(Q)):
-        for j in range(len(Q[i])):
-            if Q[i][j] != 0:
-                dict_Q[i, j] = Q[i][j]
-
-    h = {}
-    J = {}
-    linear_offset = 0.0
-    quadratic_offset = 0.0
-
-    J_matrix = np.zeros((num_nodes, num_nodes))
-    h_vector = np.zeros(num_nodes)
-
-    for (u, v), bias in dict_Q.items():
-        if u == v:
-            if u in h:
-                h[u] += .5 * bias
-            else:
-                h[u] = .5 * bias
-            linear_offset += bias
-
-        else:
-            if bias != 0.0:
-                J[(u, v)] = .25 * bias
-
-            if u in h:
-                h[u] += .25 * bias
-            else:
-                h[u] = .25 * bias
-
-            if v in h:
-                h[v] += .25 * bias
-            else:
-                h[v] = .25 * bias
-            quadratic_offset += bias
-
-    offset += .5 * linear_offset + .25 * quadratic_offset
-    h_dict: dict = h
-    J_dict: dict = J
-
-    for i, bias in h_dict.items():
-        h_vector[i] = bias
-
-    for (i, j), bias in J_dict.items():
-        J_matrix[i][j] = bias
-
-    symmetric_J = make_symmetric(J_matrix)
-    Je = reshape_matrix(symmetric_J, h_vector, num_nodes + 1)
-
-    return h_vector,J_matrix,Je,offset
-
-
-def reshape_matrix(J, h, n):
-    """ Creates a new matrix in the Ising model which contains the ferromagnetic 
-    field in the first row and first column
-
-    Args:
-        J (List[List[float]]): The Ising matrix
-        h (List[float]): The ferromagnetic field vector
-        n (int): The size of the new matrix
-
-    Returns:
-        List[List[float]]: A new matrix containing the J and h
-    """
-    Je = np.zeros((n, n))
-    r, c = 1, 1
-    J = np.array(J)
-    h = np.array(h)
-    Je[r:r + J.shape[0], c:c + J.shape[1]] += J
-    Je[1:, 0] = -0.5 * h
-    Je[0, 1:] = -0.5 * h
-    return Je
-
-def make_symmetric(J):
-    """ Create a new symmetric matrix from the J matrix
-
-    Args:
-        J (List[List[float]]): The Ising matrix
-
-    Returns:
-        List[List[float]]: The matrix J in a symmetric format
-    """
-    J_sym = 1 / 2 * (J + np.transpose(J))
-    return J_sym
-
-
-def transformToMachineDict(jobs: dict, solution: dict) -> dict:
-    """Given a solution to a problem, produces a dictionary indicating the work timeline for each machine.
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-        solution (dict): Dictionary corresponding to the solution of the JSSP where the key is the machine id, 
-        and the value is a list of starting times corresponding to each task within a particular job
-
-    Returns: 
-
-        dict: {"machine_1": [(job, time_of_operation_start, length), (..., ..., ...), ...],
-         "machine_2:: [(..., ..., ...), ...], ...}
-    """
-    machine_dict = defaultdict(list)
-    for key, value in solution.items():
-        for i in range(len(value)):
-            machine_dict[jobs[key][i][0]].append(
-                (key, value[i], jobs[key][i][1]))
-    return machine_dict
-
-
-def checkValidity(jobs: dict, sigma) -> bool:
-    """ Checks if given solution fulfills all JSSP constraints.
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-
-        sigma (dict): Dictionary corresponding to the solution of the JSSP where the key is the machine id, 
-        and the value is a list of starting times corresponding to each task within a particular job
-
-    Returns:
-        bool: true if the solution is valid
-    """
-    s = sigma[1:]
+    max_value = float('-inf')  # Initialize with negative infinity to handle negative values
     
-    num_rows = get_num_tasks(jobs)
-    num_cols = get_max_time(jobs)
-    sigma_matrix = np.reshape(s, (num_rows, num_cols))
-    solution = from_sigma_to_solution(sigma_matrix,jobs)
-    if solution == 0:
-        return False
-    # checking if order of operations in jobs is preserved
-    for job, operations in jobs.items():
-        for i, (operation1, operation2) in enumerate(list(zip(operations[:-1], operations[1:]))):
-            if solution[job][i] + operation1[1] > solution[job][i + 1]:
-                return False
+    for value in schedule.values():
+        max_value = max(max_value, value[1])
+        
+    return max_value
 
-    machineDict = transformToMachineDict(jobs, solution)
+def generate_machine_group(jobs):
+    """ Generates a dictionary where the key is the machine, and the values are a list of the tasks assigned to that machine. Task values are generated by get_global_index_of_task.
 
-    # checking if no operations using the same machine intersect
-    for _, operations in machineDict.items():
-        for i, operation1 in enumerate(operations):
-            for j, operation2 in enumerate(operations):
-                if i == j:
-                    continue
-                if not (operation1[1] + operation1[2] <= operation2[1] or  # ends before
-                        operation2[1] + operation2[2] <= operation1[1]):  # starts after
-                    return False
-    return True
+        Args:
+            jobs Dict: Dictionary generated by generate_jobs_dictionary. Keys are job index, keys are job index, values are a list of tasks and production times.
 
+        Returns:
+            Dict{int:List[Tuple(int,int)]}: The dictionary where the keys are the machine ids and the values are a list of tuples of (job_id, task_id) assigned to that machine.
 
-def create_tasks_from_jobs(jobs: dict):
-    """ Convert the jobs dictionary to a list of list
+    """
+    machine_group = dict()
+    for job_1, tasks_1 in jobs.items():
+        num_tasks = len(tasks_1)
+        for task_id in range(num_tasks):
+            machine_id_key = tasks_1[task_id][0]
+
+            if not machine_id_key in machine_group:
+                machine_group[machine_id_key] = []
+            machine_group[machine_id_key].append((job_1, task_id))
+    return machine_group
+
+def find_available_time_slots(slots):
+    """Returns all the available time slots for a single machine.
 
     Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
+        slots (np.ndarray[int]): List indicating the availability of the machine.
+            Entries of 1 indicate that the machine is available during that time slot.
+            Entries of -1 indicate that the machine is not available during that time slot.
 
     Returns:
-        List[List[int]]: The list of List corresponding to the same jobs dictionary
+        List[Tuple(int, int)]: List of slots where the machine is available. 
+            The first entry represents the start time and the second entry represents the end time of the available time slot.
     """
+    result_list = []
+    current_tuple = None
 
-    return [task for t in [tasks for _, tasks in jobs.items()] for task in t]
+    tuples = [(idx*time_unit, idx*time_unit + time_unit)
+              for idx in np.where(slots == 1)[0]]
 
-
-def get_job_index(jobs: dict, operation_index):
-    """ Get the job index given the task operation
-
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-        operation_index (int): The index of the operation we wish to have its jobs index
-
-    Returns:
-        int: The index of the job containing the corresponding operation
-    """
-
-    job_index = 1
-    cumulative_num_ops = len(jobs[job_index])
-    for _, tasks in jobs.items():
-        if operation_index >= cumulative_num_ops:
-            job_index += 1
-            cumulative_num_ops += len(tasks)
+    for tpl in tuples:
+        if current_tuple is None:
+            current_tuple = tpl
+        elif current_tuple[1] == tpl[0]:
+            current_tuple = (current_tuple[0], tpl[1])
         else:
-            return job_index
+            result_list.append(
+                (current_tuple, current_tuple[1]-current_tuple[0]))
+            current_tuple = tpl
 
+    # Append the last tuple
+    if current_tuple is not None:
+        result_list.append((current_tuple, current_tuple[1]-current_tuple[0]))
 
-def get_indexes_tasks_of_job(jobs: dict, job_idx):
-    """ Given a job id, returns the starting index and end index 
-    corresponding to the operation ids inside this given job
+    # Sorted available slots in terms of length. If the length of the available slot is smaller that the completion time of the task, then the task won't be scheduled.
+    sorted_result = list(
+        map(lambda t: t[0], sorted(result_list, key=lambda t: t[1])))
 
-    Args:
-        jobs (dict): Dictionary where the key is the job number 
-        and the value is a list of execution times of the tasks of the corresponding job key
-        job_idx (int): The job id we wish to determine the starting and end index
-
-    Returns:
-        tuple: starting operation index and end operation index of the given job
-    """
-
-    number_previous_tasks = 0
-
-    for job, tasks in jobs.items():
-        if job == job_idx:
-            break
-        number_previous_tasks += len(tasks)
-    job_task_start_index, job_task_end_index = number_previous_tasks, number_previous_tasks + len(jobs[job_idx]) - 1
-    return job_task_start_index, job_task_end_index
-
-
-def make_2D_array(lis):
-    """ From a list of list where the lists can have different lengths, produces a new 
-    list of lists of equal lengths (remaining elements are set to 0)
-
-    Args:
-        lis (List[List[int]]): The input list we wish to make it in matrix format
-
-    Returns:
-        List[List[int]]: lis in matrix format
-    """
-    n = len(lis)
-    lengths = np.array([len(x) for x in lis])
-    max_len = np.max(lengths)
-    arr = np.zeros((n, max_len))
-
-    for i in range(n):
-        arr[i, :lengths[i]] = lis[i]
-    return arr, lengths
+    return sorted_result
