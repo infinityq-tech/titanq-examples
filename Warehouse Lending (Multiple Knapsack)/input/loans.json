@@ -1,0 +1,9 @@
+[
+    { "value": 10.0, "pools": ["quebec", "blockchain_startup"]},
+    { "value": 1.0, "pools": ["ontario", "car"]},
+    { "value": 20.0, "pools": ["california", "mortgage"]},
+    { "value": 3.0, "pools": ["ontario", "mortgage"]},
+    { "value": 3.0, "pools": ["quebec", "mortgage"]},
+    { "value": 5.0, "pools": ["california", "ai_startup"]},
+    { "value": 1.0, "pools": ["quebec", "car"]}
+]
