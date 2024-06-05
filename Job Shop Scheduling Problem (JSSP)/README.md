@@ -10,7 +10,7 @@ This example contains the following sections:
 
 - Problem Instance Format
 
-- Problem Formulation Using QUBO 
+- Problem Formulation Using MILP
 
 - Hyperparameter Tuning
 
@@ -22,7 +22,7 @@ This example contains the following sections:
 
 ## Problem Definition
 
-[JSSP](https://en.wikipedia.org/wiki/Job-shop_scheduling) (Job Shop Scheduling Problem) is an optimization problem where the goal is to execute a given number of jobs across a given number of machines within the least possible time. A job consists of a series of operations, each with a specific processing time.
+The [JSSP](https://en.wikipedia.org/wiki/Job-shop_scheduling) (Job Shop Scheduling Problem) is an optimization problem where the goal is to execute a given number of jobs across a given number of machines within the least possible time. A job consists of a series of operations, each with a specific processing time.
 
 The solution must also fulfill the following constraints:
 
@@ -81,122 +81,80 @@ The first job contains 3 operations:
 - The third operation runs on machine id 0 and requires 3 units of time.
 
 
-## Problem Formulation Using QUBO
+## Problem Formulation Using MILP 
 
-In this example, we map the JSSP to a QUBO (*Quadratic Unconstrained Binary Optimization*) problem.
-
-The following expression is the hyperparameterized *QUBO* formulation:
+In this example, we map the JSSP to a MILP (*Mixed-Integer Linear Programming*) as the following model:
 
 ```math
-\begin{align}
-\mathcal{H}=
-\quad&A\sum_i\left(\sum_t x_{i,t}-1\right)^2\\
-\quad&+B\sum_m\left(\sum_{(i,t,k,t')\in R_m}x_{i,t}x_{k,t'}\right)\\
-\quad&+C\sum_n\left(\sum_{\substack{k_{n-1} < i < k_n\\ t + p_i > t'}} x_{i,t}x_{i+1,t'}\right) \\
-\quad&+D\sum_{i \in F} \sum_t tx_{i,t} \\
-\quad&+E\sum_{i \in L} \sum_t tx_{i,t}
-\end{align}
+\begin{array}{lll}
+\min & \sum_{i \in L} x_i & \\
+\mathrm{s.t.} & 0 \leq x_{i} \leq max_{time}, & \forall i \in I\\
+& x_{i} \geq x_{i-1}+p_{i-1}, & \forall i, k_{l-1}+1 \leq i \leq k_l, \forall l, 1 \leq l \leq N \\
+& x_{i} \geq x_{j}+p_{j}-V \cdot z_{i j}, & \forall i,j \in I\times I , i < j\\
+& x_{j} \geq x_{i}+p_{i}-V \cdot (1-z_{i j}), & \forall i,j \in I\times I , i < j\\
+& H \cdot (y_{ml_ji}-1) + x_{i} + p_i\leq l, & \forall m \in M, \forall i \in I_m,  \forall (l,u) \in B_{m}\\
+& u \leq x_i + H \cdot y_{ml_ji}, & \forall j \in \{1,\cdots,N_{bm}\}\\
+& z_{i j} \in\{0,1\}, & \forall i,j \in I\times I
+\end{array}
 ```
 
-where $x_{i,t}$ is a binary variable such that:
+where :
 
-```math
-\begin{align}
-x_{i,t}=
-\begin{cases}
-1,\quad\text{operation }i\text{ starts at time }t\\
-0,\quad\text{otherwise}
-\end{cases}
-\end{align}
-```
-
-The terms preceded by the hyperparameters *A*, *B*, and *C* affect the constraints embedded into the objective function of the problem.
-
-The terms preceded by the hyperparameters *D* and *E* represent the terms within the objective function to minimize.
-
-
-$R_m$ represents the set of operations executed by the machine $m$. That is $R_m = A_m \cup B_m$ where:
-
-```math
-\begin{align}
-&A_m=\{(i,t,k,t'):(i,k)\in\mathcal{I}_m\times\mathcal{I}_m, \quad i \neq k, t \ge 0,T \ge t',0< (t'-t) < p_i\}\\
-&B_m=\{(i,t,k,t'):(i,k)\in\mathcal{I}_m\times\mathcal{I}_m,\quad i < k , t = t',p_i > 0,p_j > 0\}\\
-&\mathcal{I}_m =\{i: \textit{operation \textit{i} being executed on the machine m}\}
-\end{align}
-```
-
-$F$ represents the set of all first operations within each job.
-
-$L$ represents the set of all the last operations within each job.
+- $x_{i}$ is an integer variable indicating the start time of the task $i$.
+- $z_{ij}$ is a binary variable. 
+  - $z_{ij} = 1$ indicates that the task $i$ precedes the task $j$.
+  - $z_{ij} = 0$ otherwise.
+- $y_{ml_{j}i}$ is a binary variable.
+  - $y_{ml_{j}i} = 1$ if the task $i$ precedes the $j$ th blocked time slot on the machine $m$.
+  - $y_{ml_{j}i} = 0$ otherwise.
+- $I$ is the set of tasks.
+- $M$ is the set of machines.
+- $N$ is the number of jobs.
+- $N_T$ is the number of tasks.
+- $N_M$ is the number of machines.
+- $N_{bm}$ is the number of blocked time slots on the machine $m$.
+- $I_m$ is the set of tasks running on machine $m$.
+- $p_i$ is the duration of the task $i$.
+- $k_{l-1} < i \leq k_l$ indicates the task indices within the job $j$.
+- $`B_m = \{(l_1,u_1),\cdots,(l_{N_{bm}},u_{N_{bm}})\}`$ is the set of blocked time slots on the machine $m$.
+- $L$ represents the set of all the last operations within each job.
 
 ## Hyperparameter Tuning
-
-Various hyperparameters can be tuned throughout the *QUBO* formulation and the TitanQ solver.
-
-The hyperparameters throughout the *QUBO* formulation are explained below:
-
-- The hyperparameters *A*, *B*, and *C* are used to tune the effect of the constraints embedded into the objective function of the problem:
-
-    - A is used for incentivizing each operation to be executed exactly once throughout the entire process.
-
-    - B is used for incentivizing each machine to only execute up to one operation at any given time.
-
-    - C is used for incentivizing the schedule to follow the order of execution for each operation within a particular job specified from the input file. 
-
-- The hyperparameters *D* and *E* are used to tune the effect of terms within the objective function to minimize:
-
-    - D is used for incentivizing machines to perform an operation at the very beginning of the schedule.
-
-    - E is used for incentivizing the machines to complete all jobs within the shortest possible time.
-
-> [!TIP]
-> It is typically preferred to have relatively higher values for the hyperparameters *A*, *B*, and *C*, compared to the hyperparameters *D* and *E* to generate valid solutions consistently.
-
 
 The hyperparameters used to tune the TitanQ solver are the following:
 
 - *beta* = Scales the problem by this factor (inverse of temperature). A lower *beta* allows for easier escape from local minima, while a higher *beta* is more likely to respect penalties and constraints.
 
-- *coupling_mult* = Strength of the minor embedding for the titanQ specific hardware.
-
 - *timeout_in_secs* = Maximum runtime of the solver in seconds.
 
 - *num_chains* = Number of parallel runs executed by the solver. A larger number of parallel runs generally leads to higher quality solutions.
-
-<!-- > [!WARNING]  
-> Small changes on these hyperparameters can have an impact on the quality of the solution. Use wisely.
-> Preferably keep these hyperparameters in their default values -->
 
 ## Solution Visualization
 
 The solution produced by the TitanQ SDK can be visualized with a GANTT chart where each color represents a specific job and each row represents a specific machine. This can generated with the utility function below:
 
 ````python
-utils.draw_solution(problem,solution,x_max=max_time)
+utils.plot_schedule(
+    assignment,
+    schedule,
+    available_time_slots,
+    machine_names,
+    unit="days"
+)
 ````
 
 ## How to Run
 
-A full example is demonstrated in the jupyter notebook *example.ipynb*.
+A full example is demonstrated by showcasing three JSSP instances of different sizes:
+- Small: 2 jobs and 2 machines (example_small.ipynb).
+- Medium: 6 jobs and 6 machines (example_medium.ipynb).
+- Large: 10 jobs and 5 machines (example_large.ipynb).
 
-The following package is required:
-
-- TitanQ SDK
-
-The rest of the requirements are listed under *requirements.txt* and can be installed using pip with the following command:
+The requirements are listed under *requirements.txt* and can be installed using pip with the following command:
 
 ```bash
 pip install -r requirements.txt
 ```
-
-Setting credentials to access the TitanQ SDK is required to run this example. These credentials can be set by creating a file ```.env``` from the file ```.env.example```:
-
-```
-TITANQ_DEV_API_KEY = "Your API key"
-AWS_ACCESS_KEY = "Your Access key"
-AWS_SECRET_ACCESS_KEY = "Your secret access key"
-```
-
 ## License
 
 Released under the Apache License 2.0. See [LICENSE](../LICENSE) file.

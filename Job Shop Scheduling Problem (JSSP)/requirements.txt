@@ -1,3 +1,5 @@
-plotly==5.14.1
-python-dotenv==1.0.0
-numpy==1.24.4
+plotly>=5.14.1
+numpy>=1.24.4
+nbformat>=4.2.0
+pandas
+titanq
