@@ -182,9 +182,11 @@ The solution is valid! The corresponding set is independent.
 ```
 
 
-A full step-by-step use of the TitanQ SDK to solve this MWIS problem can be found in the Jupyter notebook *example.ipynb*. The notebook uses functions from *stock_utils.py* to construct the correlation and adjacency matrix, and inputs all parameters into TitanQ.
+A full step-by-step use of the TitanQ SDK to solve this MWIS problem can be found in the Jupyter notebook *example.ipynb*. The notebook uses functions from *utils.py* to construct the correlation and adjacency matrix, and inputs all parameters into TitanQ.
 
 Some larger examples can be found in the *instances* folder, which contains market indices such as Dow Jones, Nasdaq-100 and S&P 500. Note that some of these indices have some constituents removed since they are not tracked by the *yfinance* library.
+
+This MWIS portfolio optimization strategy is backtested using historical data in the *portfolio_strategy_backtesting.ipynb* notebook. In this notebook, an optimal portfolio is constructed out of a market index by solving the MWIS problem, and then its performance is measured against the index in a future time frame.
 
 To run the notebook the following package is required:
 

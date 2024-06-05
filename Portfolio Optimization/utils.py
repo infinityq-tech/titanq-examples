@@ -2,9 +2,6 @@
 # Author: Ethan Wang ethan@infintyq.tech
 
 import numpy as np
-import pandas as pd
-import yfinance as yf
-import matplotlib.pyplot as plt
 
 def read_instance(path):
     """
@@ -30,23 +27,42 @@ def read_instance(path):
     return tickers, weights
     
     
-def get_stock_corr_matrix(tickers, start, end, period='1YE'):
+def get_stock_daily_returns(prices):
     '''
-    Given a list of stock symbols (tickers), return their correlation matrix (pairwise) over the specified end to start
-    date and period of returns. That is, the i,j entry of the returned matrix will be the correlation between
-    stocks[i] and stocks[j].
+    Given a dataframe of daily stock prices, return their (daily) returns.
     
     Args:
-        tickers (List[str]): List of tickers that we want to generate a correlation matrix for.
-        start_date (str): Start date of the time frame we want to sample. Should be in the form "YYYY-MM-DD".
-        end_date (str): End date of the time frame we want to sample. Should be in the form "YYYY-MM-DD".
-        period (str): Period of returns.
+        prices (pd.DataFrame[float]): Time indexed dataframe of daily stock prices.
+        
+    Returns:
+        pd.DataFrame[float]: Pandas dataframe with daily stock returns with the same time index as the input.
+    '''
+    return prices.ffill().pct_change()
+
+
+def daily_to_periodic_returns(daily_returns, period):
+    '''
+    Converts a dataframe of daily returns to periodic returns (e.g. monthly, annually).
+    
+    Args:
+        daily_returns (pd.DataFrame[float]): Time indexed dataframe of daily stock returns.
+        
+    Returns:
+        pd.DataFrame[float]: Pandas dataframe of periodic stock returns.
+    '''
+    return daily_returns.resample(period).agg(lambda x: (x + 1).prod() - 1)
+
+    
+def get_stock_corr_matrix(returns):
+    '''
+    Given a dataframe of stock returns, return their correlation matrix (pairwise).
+    
+    Args:
+        returns (pd.DataFrame[float]): Time indexed dataframe of stock returns.
         
     Returns:
         pd.DataFrame[float]: Pandas dataframe with tickers on both axes, filled with pairwise correlation coefficients.
     '''
-    daily_adj_closing_prices = yf.download(tickers, start=start, end=end)['Adj Close']
-    returns = daily_adj_closing_prices.resample(period).ffill().pct_change()[tickers]
     return returns.corr()
   
     
@@ -66,24 +82,32 @@ def corr_to_J_matrix(corr_matrix, theta):
     J_matrix = corr_matrix.to_numpy()
     np.fill_diagonal(J_matrix, 0)
     return (abs(J_matrix) >= theta).astype('float32')
-    
-    
-def get_annualized_stock_returns(tickers, start_year, end_year):
+
+
+def get_stock_mean_returns(returns):
     '''
-    Given a list of stock symbols (tickers), return their annualized returns from beginning of start_year (January 1)
-    to end of end_year (December 31).
+    Given a dataframe of stock returns, return the (geometric) mean return of each stock (column).
     
     Args:
-        tickers (List[str]): List of tickers that we want to get the annualized returns for.
-        start_year (int): Start year of the time frame we want to sample.
-        end_year (int): End year of the time frame we want to sample.
+        returns (pd.DataFrame[float]): Time indexed dataframe of stock returns.
         
     Returns:
-        pd.Series[float]: Pandas series of the annualized returns of the given stocks over the specified time period.
+        pd.DataFrame[float]: Pandas dataframe with the mean return of each stock.
     '''
-    daily_adj_closing_prices = yf.download(tickers, start=f"{start_year}-01-01", end=f"{end_year}-12-31")['Adj Close']
-    annual_returns = daily_adj_closing_prices.resample('1YE').ffill().pct_change()[tickers]
-    return ((annual_returns+1).prod() ** (1/(end_year - start_year)) - 1) * 100
+    return (np.exp(np.log(returns + 1).mean()) - 1) * 100
+
+
+def get_stock_stds(returns):
+    '''
+    Given a dataframe of stock returns, return the standard deviation of each stock's returns.
+    
+    Args:
+        returns (pd.DataFrame[float]): Time indexed dataframe of stock returns.
+        
+    Returns:
+        pd.DataFrame[float]: Pandas dataframe with the standard deviation in returns of each stock.
+    '''
+    return (returns * 100).std()
 
 
 def verify_independent_set(J_matrix, vertices, labels):
