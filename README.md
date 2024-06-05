@@ -10,6 +10,10 @@ Examples:
 
 - Portfolio Optimization
 
+- Quadratic Semi-Assignment Problem (QSAP)
+  
+- Warehouse Lending (Multiple Knapsack)
+
 &nbsp;
 
 **Note**: A TitanQ API Key is required to run the examples.
