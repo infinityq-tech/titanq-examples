@@ -1,0 +1,99 @@
+[{
+    "name": "small_bank_0",
+    "total_loans": 100.0,
+    "available_funds": 500.0,
+    "pools": [
+        {
+            "category": "location",
+            "name": "quebec",   
+            "limit_pct": 0.10,
+            "value": 5.0,
+            "current_pct": 0.05
+        },
+        {
+            "category": "location",
+            "name": "ontario",
+            "limit_pct": 0.10,
+            "value": 6.0,
+            "current_pct": 0.06
+        },
+        {
+            "category": "location",
+            "name": "nova_scotia",
+            "limit_pct": 0.075,
+            "value": 5.0,
+            "current_pct": 0.05
+        },
+        {
+            "category": "purpose",
+            "name": "mortgage",
+            "limit_pct": 0.25,
+            "value": 20.0,
+            "current_pct": 0.20
+        },
+        {
+            "category": "purpose",
+            "name": "car",
+            "limit_pct": 0.05,
+            "value": 4.0,
+            "current_pct": 0.04
+        },
+        {
+            "category": "purpose",
+            "name": "small_business",
+            "limit_pct": 0.10,
+            "value": 8.0,
+            "current_pct": 0.8
+        }
+    ]
+},
+{
+    "name": "vc_fund_0",
+    "total_loans": 1000.0,
+    "available_funds": 1500.0,
+    "pools": [
+        {
+            "category": "location",
+            "name": "quebec",   
+            "limit_pct": 0.11,
+            "value": 90.0,
+            "current_pct": 0.09
+        },
+        {
+            "category": "location",
+            "name": "california",
+            "limit_pct": 0.25,
+            "value": 220.0,
+            "current_pct": 0.22
+        },
+        {
+            "category": "purpose",
+            "name": "mortgage",
+            "limit_pct": 0.10,
+            "value": 60.0,
+            "current_pct": 0.06
+        },
+        {
+            "category": "purpose",
+            "name": "car",
+            "limit_pct": 0.05,
+            "value": 20.0,
+            "current_pct": 0.02
+        },
+        {
+            "category": "purpose",
+            "name": "ai_startup",
+            "limit_pct": 0.10,
+            "value": 93.0,
+            "current_pct": 0.093
+        },
+        {
+            "category": "purpose",
+            "name": "blockchain_startup",
+            "limit_pct": 0.25,
+            "value": 180.0,
+            "current_pct": 0.18
+        }
+    ]
+}
+]
