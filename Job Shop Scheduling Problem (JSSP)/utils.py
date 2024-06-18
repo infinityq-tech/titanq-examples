@@ -1,3 +1,5 @@
+# Copyright (c) 2024, InfinityQ Technology Inc.
+
 from collections import defaultdict
 from datetime import datetime
 import pandas as pd

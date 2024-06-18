@@ -1,3 +1,5 @@
+# Copyright (c) 2024, InfinityQ Technology Inc.
+
 import numpy as np
 import pandas as pd
 import os
