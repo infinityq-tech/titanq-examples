@@ -1,3 +1,5 @@
+# Copyright (c) 2024, InfinityQ Technology Inc.
+
 import math
 import numpy as np
 

@@ -50,7 +50,7 @@ BB      0.517539  0.018272  0.119746 -0.165095  0.252453 -0.036405  0.000000
 Let us set the parameter $\theta = 0.20$. Then as described above, we create an edge between all pairs of stocks whose correlation coefficient has an absolute value greater than or equal to $\theta$. The resulting adjacency matrix of the graph and graph density are given below:
 
 ```
-~~~~~~~~~~~~~ Adjacency Matrix ~~~~~~~~~~~~~
+~~~ Adjacency Matrix ~~~
 [[0. 1. 1. 0. 0. 0. 1.]
  [1. 0. 1. 0. 0. 1. 0.]
  [1. 1. 0. 0. 0. 0. 0.]
@@ -93,7 +93,7 @@ Given a graph where each node is *weighted* define the *weight* of a set of node
 
 We can solve the MWIS Problem in TitanQ by formulating it as a Quadratic Unconstrained Binary Optimization (QUBO) problem. Since the variable in question is deciding which nodes to select in the independent set, we can naturally model this as a vector of binary variables. We define
 ```math
-X = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix} ~ \text{ where each } x_i \in \{0, 1\}
+x = \begin{bmatrix} x_1 \\ x_2 \\ \vdots \\ x_n \end{bmatrix} ~ \text{ where each } x_i \in \{0, 1\}
 ```
 where $x_i = 0$ indicates that node $i$ *is not* selected for set, and $x_i = 1$ indicates that node $i$ *is* selected for the set. $n \in \mathbb{Z}^+$ is the number of nodes in the graph. 
 
@@ -116,7 +116,7 @@ where each $w_i$ is the weight of node $i$.
 Then the objective function to minimize is
 ```math
 \mathcal{H}=
-A * \left(\frac{1}{2}\sum_{i=1}^n\sum_{j=1}^n x_ix_j\right)
+A * \left(\frac{1}{2}\sum_{i=1}^n\sum_{j=1}^n J_{ij}x_ix_j\right)
 - B * \left(\sum_{i = 1}^n w_ix_i\right)
 = A \left(\frac{1}{2}x^TJx\right) - B \left(h^Tx\right)
 ```

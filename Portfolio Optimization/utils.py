@@ -1,5 +1,4 @@
-# Copyright InfinityQ Tech 2024
-# Author: Ethan Wang ethan@infintyq.tech
+# Copyright (c) 2024, InfinityQ Technology Inc.
 
 import numpy as np
 
