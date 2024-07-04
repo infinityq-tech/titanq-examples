@@ -1,0 +1,3 @@
+[submodule "Protein Folding/quantum-protein-folding"]
+	path = Protein Folding/quantum-protein-folding
+	url = https://github.com/qiskit-community/quantum-protein-folding.git
