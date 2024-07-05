@@ -10,6 +10,8 @@ Examples:
 
 - Portfolio Optimization
 
+- Protein Folding
+
 - Quadratic Semi-Assignment Problem (QSAP)
   
 - Warehouse Lending (Multiple Knapsack)
