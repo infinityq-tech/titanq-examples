@@ -31,7 +31,7 @@ git clone --recurse-submodules
 
 ## Introduction
 
-The Protein Folding Problem refers to the prediction of the three-dimensional structure of a protein based on its fundamental sequence of amino acids[^2][^3][^4]. There are 20 different amino acids[^5] and proteins consists of one or more chains of amino acids, referred to as polypeptides.
+The Protein Folding Problem refers to the prediction of the three-dimensional structure of a protein based on its fundamental sequence of amino acids[^2][^3][^4]. There are 20 different amino acids[^5] and proteins consist of one or more chains of amino acids, referred to as polypeptides.
 
 Protein structure has been extensively researched for over a half-century due to its importance in chemistry, biology, and medicine. Many classical algorithms have been developed to tackle this problem. However, they suffer from limited performance and accuracy when confronted with larger problems due to the intrinsic NP-hardness of the problem.
 
@@ -61,7 +61,7 @@ where
 
     - $`\mathbf{q}_{in}`$ is a qubit used to describe the interactions.
 
-- $`H_{gc}`$ is the geometrical constraint term which governs the growth of the primary sequence of aminoacids without bifurcations.
+- $`H_{gc}`$ is the geometrical constraint term which governs the growth of the primary sequence of amino acids without bifurcations.
 
 - $`H_{ch}`$ is the chirality constraint which enforces the right stereochemistry[^8] for the system.
 
@@ -81,17 +81,17 @@ The Hamiltonian $`H`$ can be expressed using the decision variables $`z_i \in \{
 
 ```math
 \begin{align}
-H = \sum_i h_i z_i + \sum_{ij} J_{ij} z_i z_j + \sum_{ijk} K_{ijk} z_i z_j z_k + \sum_{ijkl} L_{ijkl} z_i z_j z_k z_l + \sum_{ijklm} M_{ijklm} z_i z_j z_k z_l z_m,
+H = \sum_i h_i z_i + \sum_{ij} J_{ij} z_i z_j + \sum_{ijk} K_{ijk} z_i z_j z_k + \sum_{ijkl} L_{ijkl} z_i z_j z_k z_l + \sum_{ijklm} M_{ijklm} z_i z_j z_k z_l z_m
 \end{align}
 ```
 
 ### Model Generation
 
-The [input data](inputs/mj_matrix.txt) used to generated the model describes the interaction between the 20 different amino acids using the Mayazawa-Jernigan interaction[^12].
+The [input data](inputs/mj_matrix.txt) used to generate the model describes the interaction between the 20 different amino acids using the Mayazawa-Jernigan interaction[^12].
 
 
 ### Conversion From a Higher-Order Objective to QUBO
-The 5th order Hamiltonian $`H`$  for this problem is first reduced to reduced to 2nd order to be solved on TitanQ. One of the approaches that can be used in order to accomplish this transformation is the decomposition method.
+The 5th order Hamiltonian $`H`$  for this problem is first reduced to 2nd order to be solved on TitanQ. One approach that can be used to accomplish this transformation is the decomposition method.
 
 The decomposition to a QUBO model consists of substituting a product of two decision variables with a new variable and adding penalty terms, thus leading to a reduced model. This method uses the following equivalences that must always be held:
 
