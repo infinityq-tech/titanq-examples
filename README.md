@@ -15,6 +15,8 @@ Examples:
 - Quadratic Semi-Assignment Problem (QSAP)
   
 - Warehouse Lending (Multiple Knapsack)
+  
+- MQLib Benchmarks
 
 &nbsp;
 
