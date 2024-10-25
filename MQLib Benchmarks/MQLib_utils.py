@@ -72,10 +72,10 @@ def generate_weights_bias(instance, instance_file_path):
 
 def load_hyperparameters(instance_name):
     """
-    Returns optimal hyperparameters for the TitanQ solver for a specified QCentroid instance. 
+    Returns optimal hyperparameters for the TitanQ solver for a specified MQLib instance. 
 
     Args:
-        instance_name (str): Name of the QCentroid instance to load associated hyperparameters from
+        instance_name (str): Name of the MQLib instance to load associated hyperparameters from
 
     Returns:
         float: Minimum temperature hyperparameter used for setting up beta values
