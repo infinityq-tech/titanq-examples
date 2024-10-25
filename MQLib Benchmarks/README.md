@@ -1,11 +1,11 @@
 # README
 
-#### The QCentroid_Benchmarks.ipynb notebook allows users to verify QCentroid benchmarking results by directly running chosen problems using the TitanQ SDK.
+#### The MQLib_Benchmarks.ipynb notebook allows users to verify MQLib benchmark results by directly running chosen problems using the TitanQ SDK.
 --------------------------------------------------------------------------------
 
 ## Setup
 
-1. Clone the following repository to retrieve the 45 QCentroid instance files: https://github.com/dwavesystems/hss-overview-benchmarks
+1. Clone the following repository to retrieve the 45 MQLib instance files: https://github.com/dwavesystems/hss-overview-benchmarks
 
 2. Install Git LFS locally (Instructions may vary based on your operating system): https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage
 
