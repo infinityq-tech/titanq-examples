@@ -8,6 +8,10 @@ Examples:
 
 - Job Shop Scheduling Problem (JSSP)
 
+- MQLib Benchmarks
+
+- Maximum Clique
+
 - Portfolio Optimization
 
 - Protein Folding
@@ -15,8 +19,6 @@ Examples:
 - Quadratic Semi-Assignment Problem (QSAP)
   
 - Warehouse Lending (Multiple Knapsack)
-  
-- MQLib Benchmarks
 
 &nbsp;
 
