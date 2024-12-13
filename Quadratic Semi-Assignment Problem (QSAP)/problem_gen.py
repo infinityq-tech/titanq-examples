@@ -25,51 +25,6 @@ def generate_bias(production_cost_matrix):
     return b
 
 
-def generate_constraint_weights(production_cost_matrix):
-    """ Generate the constraint weight matrix from the Production Cost Matrix.
-    The constraint weight matrix represents the matrix A in the inequality l <= Ax <= u where u and l are the lower and upper bound.
-
-    Args:
-        production_cost_matrix (np.ndarray[int, int]): The Production Cost Matrix contains information regarding the processing costs associated with a certain material and facility.
-
-    Returns:
-        Numpy.array[float32,float32]: The constraint weight matrix to be entered into the TitanQ solver.
-    """
-
-    num_materials = len(production_cost_matrix)
-    num_facilities = len(production_cost_matrix[0])
-
-    # Transform the production cost matrix into binary format
-    A = np.zeros((num_materials, num_facilities), dtype=np.float32)
-    for i in range(num_materials):
-        for j in range(num_facilities):
-            if production_cost_matrix[i][j] > 0:
-                A[i][j] = 1
-
-    # Extend A to the shape (num_constraints, num_variables=num_materials*num_facilities)
-    constraint_weights = np.zeros(
-        (num_materials, num_materials*num_facilities), dtype=np.float32)
-
-    for i in range(num_materials):
-        for j in range(num_facilities):
-            constraint_weights[i][i*num_facilities+j] = A[i][j]
-
-    return constraint_weights
-
-
-def generate_constraint_bias(constraint_weights):
-    """ Generates a vector of 1s with length corresponding to the number of rows of the constraint weight matrix to match the expression Ax = b.
-
-    Args:
-        constraint_weights (np.ndarray[int, int]): The constraint weight matrix representing the matrix A in the inequality l <= Ax <= u where u and l are the lower and upper bound.
-
-    Returns:
-        Numpy.array[float32, float32]: The constraint biases to be entered into the TitanQ solver.
-    """
-
-    return np.ones((len(constraint_weights), 2), dtype=np.float32)
-
-
 def generate_weights(flow_matrix, distance_matrix):
     """ Generates the weight matrix based on the Flow Matrix and Distance Matrix.
     The weight matrix represents the matrix W in the objective function -1/2 * x^T.W.x - b.x.

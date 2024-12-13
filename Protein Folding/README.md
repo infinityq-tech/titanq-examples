@@ -114,7 +114,7 @@ The objective is to have the penalty term equal to $`0`$ in order to make the su
 The Hamiltonian $`H`$ formulated as a QUBO model can be inserted into TitanQ using the following code snippet:
 
 ```python
-model = Model()
+model = Model(api_key=TITANQ_DEV_API_KEY)
 
 # Construct the problem
 model.add_variable_vector('x', len(weights), Vtype.BINARY)
