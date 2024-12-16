@@ -42,9 +42,6 @@ def gen_data(model_dict):
     b = np.zeros(n, dtype=np.float32)
     W = np.zeros((n,n), dtype=np.float32)
 
-    W_con = np.zeros((m,n), dtype=np.float32)
-    con_bounds = np.zeros((m,2), dtype=np.float32)
-
     for coeff in model_dict["objective"]:
         i = model_dict["name_id"][coeff[0][0]]
         j = model_dict["name_id"][coeff[0][1]]
@@ -55,19 +52,7 @@ def gen_data(model_dict):
             W[i][j] += val
             W[j][i] += val
 
-    for con in model_dict["hard_constraints"]:
-        con_name = con[0][0][0][1]
-        i = model_dict["con_name_id"][con_name]
-        con_bounds[i][0] = con[1]
-        con_bounds[i][1] = con[1]
-
-        for var in con[0]:
-            var_name = var[0][0]
-            j = model_dict["name_id"][var_name]
-            val = var[1]
-            W_con[i][j] = val
-
-    return n, W, b, W_con, con_bounds
+    return n, W, b
 
 def proc_inequality(con, strength):
     """Decodes the inequality constraint to add it to the constraint weights matrix and constraint bounds.
