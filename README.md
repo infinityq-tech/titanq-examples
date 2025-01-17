@@ -6,6 +6,8 @@
 
 Examples:
 
+- Clustering
+
 - Job Shop Scheduling Problem (JSSP)
 
 - MQLib Benchmarks
