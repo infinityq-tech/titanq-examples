@@ -5,9 +5,10 @@
 
 
 Examples:
-
 - Clustering
-
+  
+- Index Tracking
+  
 - Job Shop Scheduling Problem (JSSP)
 
 - MQLib Benchmarks
