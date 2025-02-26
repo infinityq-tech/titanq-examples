@@ -6,6 +6,8 @@
 
 Examples:
 - Clustering
+
+- Currency Arbitrage
   
 - Index Tracking
   
