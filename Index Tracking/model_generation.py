@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from gurobipy import GRB
 from typing import Tuple, Any 
-
+from docplex.mp.model import Model
 
 data_dir = "market_data/"
 #Load S&P 500 symbols from a text file
@@ -210,6 +210,72 @@ def analyze_results_gurobi(
 
     return best_solution, best_obj
 
+def analyze_results_cplex(
+    model: Any,
+    x: Any,
+    stock_init_price: np.ndarray,
+    W: np.ndarray,
+    b: np.ndarray,
+    offset: float
+) -> Tuple[np.ndarray, float]:
+    """
+    Analyze the results from the CPLEX optimization model for the index tracking problem.
+
+    This function processes the solution provided by the CPLEX solver,
+    calculates the objective function value, and prints various metrics about the solution.
+
+    Parameters:
+    model (Any): The CPLEX model object after optimization.
+    x (Any): The decision variables from the CPLEX model.
+    stock_init_price (np.ndarray): Initial prices of the stocks.
+    W (np.ndarray): Quadratic term of the objective function.
+    b (np.ndarray): Linear term of the objective function.
+    offset (float): Constant term of the objective function.
+
+    Returns:
+    Tuple[np.ndarray, float]: A tuple containing:
+        - best_solution (np.ndarray): The optimal solution vector.
+        - best_obj (float): The objective function value for the optimal solution.
+
+    Prints:
+    - Optimization status (optimal or not)
+    - Total tracking error
+    - Budget used
+    - Number of individual assets used
+    - Portfolio stock tickers and weights
+    """
+    N = len(b)
+    # Display results
+    if model.solve_details.status == 'optimal':
+        print("Found optimal weights!")
+    else:
+        print("No optimal solution found. Using generated weights")
+        return None, None
+    
+    # Optimal weights    
+    optimal_weights = [var.solution_value for var in x]
+
+    best_solution = np.array(optimal_weights)
+
+    N = len(stock_init_price)
+
+    print("==================================================================")
+    best_obj = 0.5 * best_solution @ W @ best_solution + best_solution @ b + offset
+    print("Total Tracking Error sum(index_return - portfolio_return)^2:", best_obj)
+    print("Budget Used:$", sum(stock_init_price[i] * best_solution[i] for i in range(N)))
+    print("Individual Assets Used:", sum([x > 0.5 for x in best_solution]))
+    stock_tickers: str = ""
+    weights: str = ""
+    for i in range(len(best_solution)):
+        if best_solution[i] > 0.5:
+            stock_tickers += f"{sp500_symbols[i]}, "
+            weights += f"{best_solution[i]}, "
+    print("Portfolio Stock Tickers:", stock_tickers)
+    print("Portfolio weights:", weights)
+    print("==================================================================")
+
+    return best_solution, best_obj
+
 
 def analyze_results_titanq(
     response: Any,
@@ -251,7 +317,7 @@ def analyze_results_titanq(
     best_solution: np.ndarray = response.result_items()[0][1]
     best_obj: float = 1e8
     N: int = len(stock_init_price)
-
+    
     for solution_ind, solution in enumerate(response.result_items()):
         print("==================================================================")
         print(f"Solution #{solution_ind}")
