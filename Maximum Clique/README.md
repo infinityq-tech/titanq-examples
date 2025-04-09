@@ -3,7 +3,7 @@
 **This project gives examples for solving the maximum clique problem using quadratic constraints and the TitanQ SDK.**
 
 ## Maximum Clique Problem
-Let $G=(V,E)$ be an unweighted, undirected graph. A **clique** of $G$ is a subset $C\subseteq V$ such that for all $u,v\in C$, we have $uv\in E$. In other words, a clique is a complete subgraph of $G$. A maximum clique is a clique such that no clique with more elements exsits. The size of a maximum clique is denoted $\omega(G)$ [1].
+Let $G=(V,E)$ be an unweighted, undirected graph. A **clique** of $G$ is a subset $C\subseteq V$ such that for all $u,v\in C$, we have $uv\in E$. In other words, a clique is a complete subgraph of $G$. A maximum clique is a clique such that no clique with more elements exists. The size of a maximum clique is denoted $\omega(G)$ [1].
 
 Finding $\omega(G)$ for an arbitrary graph $G$ is NP-complete. However, we can use TitanQ to find large cliques in $G$ by framing it as an optimization problem.
 
