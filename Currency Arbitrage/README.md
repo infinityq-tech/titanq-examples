@@ -21,7 +21,7 @@ Given a list of financial assets/currencies and some exchange rates between them
 
 We can model the financial market as a directed graph, where nodes represent currencies or assets, and directed edges represent exchange rates. The goal is to identify a series of exchanges to gain profit by identifying an appropriate cycle in the graph. An arbitrage opportunity exists if the product of the exchange rates in the cycle is greater than 1 (or equivalently, the sum of negative log exchange rates is negative).
 
-In our examples, we focus on *currencies*, and take advantage of the library *yfinance* to obtain current data on exchange rates. As a simple example, consider the set of 4 currencies: USD, EUR, JPY, and GBP. Below we find the exchange rates between each pair of currencies from current data. Each entry i,j represents the exchange rate from currency i to currency j. For example, we have that the exchange rate from EUR to USD is 1.04297, meaning 1 EUR = 1.04297 USD. Edges that do not exist are assigned an exchange rate of zero, such as for USD/USD or missing data from *yfinance*. This is to prevent an invalid currency exchange.
+In our examples, we focus on *currencies*, with an option to load a full dataset from a given day January 2, 2025. As a simple example, consider the set of 4 currencies: USD, EUR, JPY, and GBP. Below we find the exchange rates between each pair of currencies from current data. Each entry i,j represents the exchange rate from currency i to currency j. For example, we have that the exchange rate from EUR to USD is 1.04297, meaning 1 EUR = 1.04297 USD. Edges that do not exist are assigned an exchange rate of zero, such as for USD/USD or missing data. This is to prevent an invalid currency exchange.
 ```
 ~~~~~~~~~~~~~ Exchange Rate Matrix ~~~~~~~~~~~~~
           USD       EUR         JPY       GBP  
@@ -78,9 +78,9 @@ To ensure our solution ```x``` represents a cycle, we first implement a constrai
 
 This can be written as the following two constraints:
 
-(1) $\sum_{j, (i, j) \in E} x_{ij} - \sum_{j, (j, i) \in E} x_{ji} = 0  ~ \text{ for all } i$
+(1) $\sum_{j, (i, j) \in E} x_{ij} - \sum_{j, (j, i) \in E} x_{ji} = 0  ~ \text{ for all } i \in V$
 
-(2) $\sum_{j, (i, j) \in E} x_{ij} \leq 1  ~ \text{ for all } i$
+(2) $\sum_{j, (i, j) \in E} x_{ij} \leq 1  ~ \text{ for all } i \in V$
 
 We call constraint (1) our flow constraint and constraint (2) our number of exchanges constraint.
 
@@ -98,17 +98,15 @@ The hyperparameters used to tune the TitanQ solver are the following:
 
 - *penalty_scaling* = Scales the impact of constraint violations. A higher *penalty_scaling* means a higher likelihood of generating a feasible solution.
 
-> **Small changes in these hyperparameters can have a considerable impact on the quality of the solution.**
-
 ## TitanQ Example
 
-*instances*: There are two instances provided with a list of currencies (*currencies_6*, *currencies_25*)
+*instances*: There are two instances provided with a list of currencies (*currencies_6*, *currencies_25*). A full dataset for a given day January 2, 2025 can also be loaded if desired.
 
-*exch_rates*: Hardcoded exchange rates to skip past loading data from yfinance
+*exch_rates*: Exchange rates for currencies_6 and currencies_25.
 
-*arbitrage_titanq.ipynb*: This Jupyter notebook demonstrates a full step-by-step use of the TitanQ SDK to solve this problem using live data from Yahoo Finance, reading from either *currencies_6* or *currencies_25*.
+*arbitrage_titanq.ipynb*: This Jupyter notebook demonstrates a full step-by-step use of the TitanQ SDK, either from *currencies_6* or *currencies_25* or a full dataset for January 2, 2025.
 
-*utils.py*: Helper functions to read in data and calculate profit from the exchanges.
+*model_generation.py*: Functions used to create, solve, and analyze results from the TitanQ model.
 
 The required packages are listed in *requirements.txt* and can be installed using pip:
 
