@@ -6,54 +6,164 @@ import pylab
 from collections import defaultdict
 import pandas as pd
 import os
-import requests
-from requests.exceptions import SSLError
 import json
 from titanq import Model, Vtype, Target
 from contextlib import redirect_stdout
+import boto3
+from botocore.config import Config
 
-def generate_data():
+
+def start_polygon_session(aws_access_key_id, aws_secret_access_key):
     """
-    Loads minute aggregated forex data from January 2, 2025 into csv file.
+    Start a boto3 polygon session. Note Access Key & Secret Access Key should be provided by polygon.io 
+    Args:
+        aws_access_key_id (str): AWS Access Key 
+        aws_secret_acces_key (str): AWS Secret Access Key
+    
+    """
+    session = boto3.Session(
+        aws_access_key_id = aws_access_key_id,
+        aws_secret_access_key = aws_secret_access_key
+    )
+    return session
+
+
+def generate_data_polygon(session, year, month, day):
+    """
+    Generate data from a Polygon.io session
+
+    Args:
+        session (boto3.Session): Client session used for loading full dataset from polygon.io, containing AWS access keys.
+        year (str): Year of forex data in format 'YYYY' (eg 2025).
+        month (str): Month of forex data in format 'MM' (eg 01).
+        day (str): Day of forex data in format "DD" (eg 05).
+
     Returns:
         None
-    Loads:
-        csv files of forex data in directory 'instances/'.
+
+    Downloads:
+        csv files of forex data for each day of month and year in directory 
+        'instances/'.
     """
-    # Loading in file from public s3 bucket
-    file_name = "2025-01-02.csv.gz"
-    url = f"https://s3.us-east-1.amazonaws.com/titanq.example/currency-arbitrage-example/{file_name}"
+    if session.get_credentials() is None or session.get_credentials().access_key is None or session.get_credentials().secret_key is None:
+        raise ValueError("Polygon AWS key(s) necessary for downloading minute data.")
+        return
+
+    # Validating month and year
+    current_year = pd.Timestamp.now().year
+    current_month = pd.Timestamp.now().month
 
     try:
-        # First attempt with SSL verification
-        response = requests.get(url)
-        response.raise_for_status()
-
-    except SSLError as ssl_error:
-        print("SSL verification failed, retrying without verification...")
-        # Retry without SSL verification
-        response = requests.get(url, verify=False)
-        response.raise_for_status()
-
-    except requests.exceptions.RequestException as e:
-        print(f"Download failed: {e}")
-        raise
-
-    # Save the file
-    with open(f"./instances/{file_name}", 'wb') as f:
-        f.write(response.content)
-    print(f"Downloaded to '{file_name}'")
-
-    response = requests.get(url)
-    response.raise_for_status()
-
-    with open(f"./instances/{file_name}", 'wb') as f:
-        f.write(response.content)
+        if int(year) < 2010 or int(year) > current_year or \
+            (int(year) == current_year and int(month) > current_month) or \
+            int(month) > 12 or int(month) < 1 or \
+            int(day) > 31 or int(day) < 1:
+            print("Please input a month and year between Jan 2010 - Present.")
+            return
+        
+        if len(year) != 4 or len(month) != 2 or len(day) != 2:
+            print("Please format your year and month properly. (Eg 2025 and 01)")
+            return
     
-def load_data(full_dataset, instance):
+    except:
+        print("Please input valid numbers for your month and year!")
+        return
+    
+    # Create a client with your session and specify the endpoint
+    s3 = session.client(
+    's3',
+    endpoint_url = 'https://files.polygon.io',
+    config = Config(signature_version='s3v4'),
+    )
+
+    # Choose the appropriate prefix depending on the data you need:
+    # - 'global_crypto' for global cryptocurrency data
+    # - 'global_forex' for global forex data
+    # - 'us_indices' for US indices data
+    # - 'us_options_opra' for US options (OPRA) data
+    # - 'us_stocks_sip' for US stocks (SIP) data
+    prefix = 'global_forex'  # Example: Change this prefix to match your data need
+
+    # Specify the bucket name
+    bucket_name = 'flatfiles'
+
+    # Specify the S3 object key name
+    available = []
+    try:
+        object_key = f"{prefix}/minute_aggs_v1/{year}/{month}/{year}-{month}-{day}.csv.gz"
+
+        # Specify the local file name and path to save the downloaded file
+        # This splits the object_key string by '/' and takes the last segment as the file name
+        local_file_name = object_key.split('/')[-1]
+
+        # Storing data (where to)
+
+        # Creating directory to load csv into
+        dir = './instances/'
+        os.makedirs(dir, exist_ok=True)
+
+        # Constructing the full local file path
+        local_file_path = dir + local_file_name
+
+        # Download the file
+        s3.download_file(bucket_name, object_key, local_file_path)
+        available.append(day)
+    except Exception as e:
+        print(f"Date not available:{year}-{month}-{day}, Exception:{e}")
+
+
+def load_day_data(year, month, day):
     """
-    Read in bool to use full dataset and instance, and either loads minute aggregated forex data into
-    csv files or reads chosen instance file.
+    Read in minute minute aggregated forex data from CSV file
+
+    Args:
+        year (str): Year of forex data in format 'YYYY' (eg 2025).
+        month (str): Month of forex data in format 'MM' (eg 01).
+        day (str): Day of forex data in format "DD" (eg 05).
+
+    Returns:
+        List[str]: List of currencies.
+        pd.DataFrame: Pandas dataframe containing exchange rate data.
+
+    Loads:
+        csv file of forex data for specified day in folder 'instances/'.
+    """
+    dir = './instances'
+    currencies = []
+    try:
+        rates = pd.read_csv(f"{dir}/{year}-{month}-{day}.csv.gz")
+
+    except:
+        raise ValueError("File not found.")
+    
+    # Store all exchange pairs
+    rates = rates.drop_duplicates(subset="ticker", keep="last")
+
+    currency_pairs = rates["ticker"].values
+    print(f"Number of active currency pairs: {len(currency_pairs)}")
+    
+    # Store all currencies
+    for pair in currency_pairs:
+        base, quote = pair[2:].split("-")
+        currencies.append(base)
+        currencies.append(quote)
+
+    currencies = sorted(np.unique(currencies))
+    df = pd.DataFrame(index=currencies, columns=currencies)
+
+    # Populating exchange rate dataframe
+    for _, row in rates.iterrows():
+        base, quote = row["ticker"][2:].split("-")
+        df.at[base, quote] = row["close"]
+
+    df = df.where(pd.notna(df), 0.)
+
+    return currencies, df
+
+    
+def load_instance_data(instance):
+    """
+    Reads instance file given by "instance"
 
     Args:
         full_dataset (bool): A bool indicating whether the full dataset from January 2, 2025 was loaded or not.
@@ -68,56 +178,27 @@ def load_data(full_dataset, instance):
         csv file of forex data for January 2, 2025 in folder 'instances/'.
     """
     currencies = []
-    if full_dataset:
-        try:
-            rates = pd.read_csv(f"./instances/2025-01-02.csv.gz")
+    try:
+        with open(f"instances/symbols/{instance}") as f:
+            lines = [line.rstrip().split() for line in f]
+            currencies = [line[0] for line in lines]
+    except:
+        raise ValueError("Please set your instance to either currencies_6 or currencies_25.")
 
-        except:
-            print("No data found.")
-            return None, None
-        
-        # Store all exchange pairs
-        rates = rates.drop_duplicates(subset="ticker", keep="last")
+    # Loading exchange rates from file
+    with open(f"instances/exch_rates/{instance}.json", "r") as f:
+        exchange_rates = json.load(f)
 
-        currency_pairs = rates["ticker"].values
-        print(f"Number of active currency pairs: {len(currency_pairs)}")
-        
-        # Store all currencies
-        for pair in currency_pairs:
-            base, quote = pair[2:].split("-")
-            currencies.append(base)
-            currencies.append(quote)
-
-        currencies = sorted(np.unique(currencies))
-        df = pd.DataFrame(index=currencies, columns=currencies)
-
-        # Populating exchange rate dataframe
-        for _, row in rates.iterrows():
-            base, quote = row["ticker"][2:].split("-")
-            df.at[base, quote] = row["close"]
-
-    else:
-        try:
-            with open(f"instances/symbols/{instance}") as f:
-                lines = [line.rstrip().split() for line in f]
-                currencies = [line[0] for line in lines]
-        except:
-            print("Please set your instance to either currencies_6 or currencies_25.")
-            return
-
-        # Loading exchange rates from file
-        with open(f"instances/exch_rates/{instance}.json", "r") as f:
-            exchange_rates = json.load(f)
-
-        # Converting rates into pandas dataframe
-        df = pd.DataFrame(index=currencies, columns=currencies)
-        for pair, rate in exchange_rates.items():
-            base, quote = pair[2:].split("-")
-            df.at[base, quote] = rate
+    # Converting rates into pandas dataframe
+    df = pd.DataFrame(index=currencies, columns=currencies)
+    for pair, rate in exchange_rates.items():
+        base, quote = pair[2:].split("-")
+        df.at[base, quote] = rate
 
     df = df.where(pd.notna(df), 0.)
 
     return currencies, df
+
 
 def find_exchange_cycles(exchanges):
     '''
@@ -163,6 +244,7 @@ def find_exchange_cycles(exchanges):
 
     return [list(cycle) for cycle in cycles]
 
+
 def calculate_profit(cycles, currencies, exch_rates):
     '''
     Reads in a list of cycles and outputs the total profit and a dictionary with keys of profitable
@@ -197,6 +279,7 @@ def calculate_profit(cycles, currencies, exch_rates):
 
     return outputs
 
+
 def solve_model(model, num_chains, num_engines, Tmin, Tmax, timeout_in_secs, penalty_scaling):
     """
     Solves the currency arbitrage TitanQ model and returns the solution.
@@ -224,6 +307,7 @@ def solve_model(model, num_chains, num_engines, Tmin, Tmax, timeout_in_secs, pen
                               num_chains=num_chains, 
                               num_engines=num_engines, 
                               penalty_scaling=penalty_scaling)
+
 
 def analyze_results(response, edge_names, currencies, exch_rate_matrix):
     """
@@ -305,6 +389,7 @@ def analyze_results(response, edge_names, currencies, exch_rate_matrix):
 
     return best_weight, best_cycle
 
+
 def plot_graph(G, best_cycle, edge_names, exch_rate_values):
     """
     Plots the currency graph with the most profitable cycle highlighted in red.
@@ -353,6 +438,7 @@ def plot_graph(G, best_cycle, edge_names, exch_rate_values):
     # Labelling nodes
     nx.draw_networkx_labels(G, pos, font_size=10, font_color="white", font_weight="bold")
     pylab.show()
+
 
 def generate_minute_profit(TITANQ_DEV_API_KEY, freq, bps):
     """
