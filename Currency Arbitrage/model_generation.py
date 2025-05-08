@@ -6,13 +6,12 @@ import pylab
 from collections import defaultdict
 import pandas as pd
 import os
-import requests
-from requests.exceptions import SSLError
 import json
 from titanq import Model, Vtype, Target
 from contextlib import redirect_stdout
 import boto3
 from botocore.config import Config
+
 
 def start_polygon_session(aws_access_key_id, aws_secret_access_key):
     """
@@ -77,10 +76,6 @@ def generate_data_polygon(session, year, month, day):
     config = Config(signature_version='s3v4'),
     )
 
-    # List Example
-    # Initialize a paginator for listing objects
-    paginator = s3.get_paginator('list_objects_v2')
-
     # Choose the appropriate prefix depending on the data you need:
     # - 'global_crypto' for global cryptocurrency data
     # - 'global_forex' for global forex data
@@ -94,7 +89,6 @@ def generate_data_polygon(session, year, month, day):
 
     # Specify the S3 object key name
     available = []
-    unavailable = []
     try:
         object_key = f"{prefix}/minute_aggs_v1/{year}/{month}/{year}-{month}-{day}.csv.gz"
 
@@ -116,7 +110,6 @@ def generate_data_polygon(session, year, month, day):
         available.append(day)
     except Exception as e:
         print(f"Date not available:{year}-{month}-{day}, Exception:{e}")
-
 
 
 def load_day_data(year, month, day):
@@ -166,6 +159,7 @@ def load_day_data(year, month, day):
     df = df.where(pd.notna(df), 0.)
 
     return currencies, df
+
     
 def load_instance_data(instance):
     """
@@ -204,6 +198,7 @@ def load_instance_data(instance):
     df = df.where(pd.notna(df), 0.)
 
     return currencies, df
+
 
 def find_exchange_cycles(exchanges):
     '''
@@ -249,6 +244,7 @@ def find_exchange_cycles(exchanges):
 
     return [list(cycle) for cycle in cycles]
 
+
 def calculate_profit(cycles, currencies, exch_rates):
     '''
     Reads in a list of cycles and outputs the total profit and a dictionary with keys of profitable
@@ -283,6 +279,7 @@ def calculate_profit(cycles, currencies, exch_rates):
 
     return outputs
 
+
 def solve_model(model, num_chains, num_engines, Tmin, Tmax, timeout_in_secs, penalty_scaling):
     """
     Solves the currency arbitrage TitanQ model and returns the solution.
@@ -310,6 +307,7 @@ def solve_model(model, num_chains, num_engines, Tmin, Tmax, timeout_in_secs, pen
                               num_chains=num_chains, 
                               num_engines=num_engines, 
                               penalty_scaling=penalty_scaling)
+
 
 def analyze_results(response, edge_names, currencies, exch_rate_matrix):
     """
@@ -391,6 +389,7 @@ def analyze_results(response, edge_names, currencies, exch_rate_matrix):
 
     return best_weight, best_cycle
 
+
 def plot_graph(G, best_cycle, edge_names, exch_rate_values):
     """
     Plots the currency graph with the most profitable cycle highlighted in red.
@@ -439,6 +438,7 @@ def plot_graph(G, best_cycle, edge_names, exch_rate_values):
     # Labelling nodes
     nx.draw_networkx_labels(G, pos, font_size=10, font_color="white", font_weight="bold")
     pylab.show()
+
 
 def generate_minute_profit(TITANQ_DEV_API_KEY, freq, bps):
     """
